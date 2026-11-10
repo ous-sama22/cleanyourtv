@@ -12,6 +12,7 @@ const { chromium } = require('playwright-core');
 
   await page.goto('file://' + process.argv[2]);
   await page.waitForTimeout(15000);
+  if (errors.length) { console.log(JSON.stringify({ errors })); process.exit(1); }
   await page.screenshot({ path: 'test/early.png' });
   await page.waitForTimeout(165000);
   const bot = await page.evaluate(() => ({

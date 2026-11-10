@@ -1,15 +1,27 @@
 // Auto-play for Chromium's T-Rex runner, used as a TV screensaver.
-// Silent: the game's sounds are never loaded. A remote key hands control to the
-// viewer; the bot takes over again after 20 seconds without a key.
+// A remote key hands control to the viewer; the bot takes over again after 20 seconds
+// without a key. The game is silent while the bot plays and has its sounds while the
+// viewer plays.
 (function () {
   'use strict';
   var MANUAL_MS = 20000;   // viewer keeps control this long after their last key
   var RESTART_MS = 2500;   // pause on the game-over screen before the bot restarts
 
-  Runner.prototype.playSound = function () {};
-  Runner.prototype.loadSounds = function () {};
+  var stats = window.__dino = { crashes: 0, best: 0, manualUntil: 0, sounds: 0 };
+  function manual() { return Date.now() < stats.manualUntil; }
 
-  var stats = window.__dino = { crashes: 0, best: 0, manualUntil: 0 };
+  // The game makes a new AudioContext every time it starts from a pause; keep one.
+  var loadSounds = Runner.prototype.loadSounds;
+  Runner.prototype.loadSounds = function () {
+    if (!this.audioContext) loadSounds.call(this);
+  };
+  var playSound = Runner.prototype.playSound;
+  Runner.prototype.playSound = function (buffer) {
+    if (!buffer || !manual()) return;      // the bot plays silently
+    if (this.audioContext.state === 'suspended') this.audioContext.resume();
+    stats.sounds++;
+    playSound.call(this, buffer);
+  };
   var crashedAt = 0;
   var ducking = false;
 
@@ -29,9 +41,18 @@
   function up(r, code) { r.onKeyUp(ev('keyup', code)); }
 
   // Called from DinoDream.java for OK/Up ('jump') and Down ('duck').
+  // 'auto' (Left/Right) hands the game straight back to the bot, which mutes it again.
   window.dinoKey = function (name, isDown) {
     var r = Runner.instance_;
     if (!r) return;
+    if (name === 'auto') {
+      if (isDown && manual()) {
+        stats.manualUntil = 0;
+        if (r.tRex && r.tRex.ducking) up(r, 40);
+        ducking = false;
+      }
+      return;
+    }
     stats.manualUntil = Date.now() + MANUAL_MS;
     if (ducking) { up(r, 40); ducking = false; }
     var code = name === 'duck' ? 40 : 38;
@@ -53,7 +74,7 @@
 
     var d = r.distanceMeter.getActualDistance(Math.ceil(r.distanceRan));
     if (d > stats.best) stats.best = d;
-    if (Date.now() < stats.manualUntil) return;
+    if (manual()) return;
 
     if (r.crashed) {
       if (Date.now() - crashedAt > RESTART_MS) r.restart();

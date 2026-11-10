@@ -27,7 +27,9 @@ public class DinoDream extends DreamService {
         web.setFocusable(false);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
-        s.setMediaPlaybackRequiresUserGesture(true);
+        // Remote keys reach the page through evaluateJavascript, which is not a user gesture,
+        // so the game's AudioContext would otherwise stay suspended when the viewer plays.
+        s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);   // file:///android_asset stays readable
         s.setAllowContentAccess(false);
         s.setGeolocationEnabled(false);
@@ -52,7 +54,7 @@ public class DinoDream extends DreamService {
                 || code == KeyEvent.KEYCODE_VOLUME_MUTE) {
             return super.dispatchKeyEvent(e);
         }
-        // Back, Left, Right, Menu and the rest leave the screensaver. Finish on key down so
+        // Back, Menu and the rest leave the screensaver. Finish on key down so
         // the matching key up lands on nothing that acts on it.
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             finish();
@@ -71,6 +73,9 @@ public class DinoDream extends DreamService {
                 return "jump";
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 return "duck";
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                return "auto";   // hand the game back to the bot
             default:
                 return null;
         }

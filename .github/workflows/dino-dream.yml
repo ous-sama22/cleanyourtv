@@ -31,6 +31,19 @@ jobs:
           curl -fsSL --retry 3 -o $dst/100-offline-sprite.png $base/assets/default_100_percent/100-offline-sprite.png
           curl -fsSL --retry 3 -o $dst/200-offline-sprite.png $base/assets/default_200_percent/200-offline-sprite.png
           curl -fsSL --retry 3 -o $dst/LICENSE-t-rex-runner.txt $base/LICENSE
+          curl -fsSL --retry 3 -o /tmp/trex-index.html $base/index.html
+          # Copy the game's three sounds (base64 <audio> tags) into our page.
+          python3 - <<'EOF'
+          import re
+          src = open('/tmp/trex-index.html', encoding='utf-8').read()
+          m = re.search(r'<template id="audio-resources">.*?</template>', src, re.S)
+          assert m and m.group(0).count('<audio') == 3, 'audio template not found'
+          path = 'src/main/assets/dino/index.html'
+          page = open(path, encoding='utf-8').read()
+          empty = '<template id="audio-resources"></template>'
+          assert empty in page
+          open(path, 'w', encoding='utf-8').write(page.replace(empty, m.group(0)))
+          EOF
           ls -l $dst
       - name: Test the bot in headless Chrome
         run: |
